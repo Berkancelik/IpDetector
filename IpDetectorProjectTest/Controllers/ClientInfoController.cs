@@ -15,35 +15,39 @@ namespace IpDetectorProject.Controllers
         [HttpGet]
         public IActionResult GetClientInfo()
         {
+            // kullanıcı Ip adresini alıyoruz 
             var clientIp = HttpContext.Connection.RemoteIpAddress.ToString();
+
+            // eğer ip adresi ::1 ise , kullanıcının pc'sinin Ip adresi dns sınıfı olarak kullanılıyor
+            if (clientIp == "::1")
+            {
+                clientIp = Dns.GetHostEntry(Dns.GetHostName()).AddressList[2].ToString();
+            }
+
+            // kullanıcının konum bilgisi alınıyor 
             var location = GetLocationInfo(clientIp);
-            var isp = GetISPInfo(clientIp);
-            var clientInfo = new { IP = clientIp, Location = location, ISP = isp };
+            // kullanınının Ip adresi ve konum bilgileri object olarak dönderiyoruz 
+             var clientInfo = new { IP = clientIp, Location = location };
             return Ok(clientInfo);
         }
 
+
+        // kullanınının Ip adresi ve konum bilgileri object olarak dönderiyor
+
         private string GetLocationInfo(string clientIp)
         {
-            //Api key buraya eklenmeli
-            var apiKey = "<Your_API_Key>";
+            // Api Key 
+            var apiKey = "4243c5a6ffad2313454d4fc5122162c8\r\n";
             using (var client = new HttpClient())
             {
-                var json = client.GetStringAsync("https://api.ipinfodb.com/v3/ip-city/?key=" + apiKey + "&ip=" + clientIp + "&format=json").Result;
+                // yapılan istekte kullanıcının Ip adresi ile birliklte gönderiyoruz
+                var json = client.GetStringAsync("http://api.ipstack.com/" + clientIp + "?access_key=" + apiKey).Result;
                 dynamic data = JsonConvert.DeserializeObject(json);
-                return data.cityName + ", " + data.regionName + ", " + data.countryName;
+
+                // Kulanıcının şehir, bölge ve ülke bilgileri döndürülür 
+                return data.city + ", " + data.region_name + ", " + data.country_name;
             }
         }
 
-        private string GetISPInfo(string clientIp)
-        {
-            //Api key buraya eklenmeli
-            var apiKey = "<Your_API_Key>";
-            using (var client = new HttpClient())
-            {
-                var json = client.GetStringAsync("https://api.ipinfodb.com/v3/ip-isp/?key=" + apiKey + "&ip=" + clientIp + "&format=json").Result;
-                dynamic data = JsonConvert.DeserializeObject(json);
-                return data.isp;
-            }
-        }
-    }
+     }
 }
