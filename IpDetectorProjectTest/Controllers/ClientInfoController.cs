@@ -2,9 +2,12 @@
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-  using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace IpDetectorProject.Controllers
 {
@@ -13,41 +16,72 @@ namespace IpDetectorProject.Controllers
     public class ClientInfoController : ControllerBase
     {
         [HttpGet]
-        public IActionResult GetClientInfo()
+        //[Authorize]
+        [SwaggerOperation(
+            Summary = "Get User IP and location",
+            Description = "Get User IP and location by accessing an external API",
+            OperationId = "GetUserIPAndLocation",
+            Tags = new[] { "IP" }
+        )]
+        public ActionResult<UserLocation> Get()
         {
-            // kullanıcı Ip adresini alıyoruz 
-            var clientIp = HttpContext.Connection.RemoteIpAddress.ToString();
+            // Kullanıcının IP adresini al
+            string ip = GetUserIP();
 
-            // eğer ip adresi ::1 ise , kullanıcının pc'sinin Ip adresi dns sınıfı olarak kullanılıyor
-            if (clientIp == "::1")
-            {
-                clientIp = Dns.GetHostEntry(Dns.GetHostName()).AddressList[2].ToString();
-            }
+            // IP adresini kullanarak kullanıcının konum bilgilerini al
+            string location = GetLocation(ip);
 
-            // kullanıcının konum bilgisi alınıyor 
-            var location = GetLocationInfo(clientIp);
-            // kullanınının Ip adresi ve konum bilgileri object olarak dönderiyoruz 
-             var clientInfo = new { IP = clientIp, Location = location };
-            return Ok(clientInfo);
+            return Ok(new UserLocation { IP = ip, Location = location });
         }
 
-
-        // kullanınının Ip adresi ve konum bilgileri object olarak dönderiyor
-
-        private string GetLocationInfo(string clientIp)
+        private string GetUserIP()
         {
-            // Api Key 
-            var apiKey = "4243c5a6ffad2313454d4fc5122162c8\r\n";
-            using (var client = new HttpClient())
+            string ip = "";
+            try
             {
-                // yapılan istekte kullanıcının Ip adresi ile birliklte gönderiyoruz
-                var json = client.GetStringAsync("http://api.ipstack.com/" + clientIp + "?access_key=" + apiKey).Result;
-                dynamic data = JsonConvert.DeserializeObject(json);
+                // IP adresi almak için api çağrısı yap
+                string apiUrl = "http://api.ipstack.com/check?access_key=74c49023e5079bf5f88d025c2733974a\r\n";
+                var json = new WebClient().DownloadString(apiUrl);
+                var data = JObject.Parse(json);
 
-                // Kulanıcının şehir, bölge ve ülke bilgileri döndürülür 
-                return data.city + ", " + data.region_name + ", " + data.country_name;
+                // IP adresini al
+                ip = data["ip"].ToString();
             }
-        }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
 
-     }
+            return ip;
+        }
+        private string GetLocation(string ip)
+        {
+            string location = "";
+            try
+            {
+                // IP adresi kullanarak konum bilgilerini almak için api çağrısı yap
+                string apiUrl = $"http://api.ipstack.com/{ip}?access_key=74c49023e5079bf5f88d025c2733974a\r\n";
+                var json = new WebClient().DownloadString(apiUrl);
+                var data = JObject.Parse(json);
+
+                // Şehir ve ülke bilgilerini al
+                string city = data["city"].ToString();
+                string country = data["country_name"].ToString();
+
+                location = $"{city}, {country}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+
+            return location;
+        }
+    }
+
+    public class UserLocation
+    {
+        public string IP { get; set; }
+        public string Location { get; set; }
+    }
 }
