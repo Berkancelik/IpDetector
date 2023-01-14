@@ -11,6 +11,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using StackExchange.Redis;
+using Microsoft.AspNetCore.Connections;
+using RabbitMQ.Client;
 
 namespace IpDetectorProjectTest
 {
@@ -26,7 +29,12 @@ namespace IpDetectorProjectTest
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-
+            services.AddSingleton<ConnectionFactory>(sp =>
+            {
+                var factory = new ConnectionFactory();
+                factory.Uri = new Uri("amqps://xmjlrqlu:ta1aoEvcFb_LelYjKxQgEln-aADN41lN@moose.rmq.cloudamqp.com/xmjlrqlu");
+                return factory;
+            }); 
             services.AddControllers();
             services.AddSwaggerGen(c =>
             {

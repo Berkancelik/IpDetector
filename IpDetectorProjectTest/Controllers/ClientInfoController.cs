@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using RabbitMQ.Client;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace IpDetectorProject.Controllers
@@ -15,14 +16,13 @@ namespace IpDetectorProject.Controllers
     [ApiController]
     public class ClientInfoController : ControllerBase
     {
+        private readonly IConnection _connection;
+        public ClientInfoController(IConnection connection)
+        {
+            _connection = connection;
+        }
+
         [HttpGet]
-        //[Authorize]
-        [SwaggerOperation(
-            Summary = "Get User IP and location",
-            Description = "Get User IP and location by accessing an external API",
-            OperationId = "GetUserIPAndLocation",
-            Tags = new[] { "IP" }
-        )]
         public ActionResult<UserLocation> Get()
         {
             // Kullanıcının IP adresini al
@@ -30,6 +30,13 @@ namespace IpDetectorProject.Controllers
 
             // IP adresini kullanarak kullanıcının konum bilgilerini al
             string location = GetLocation(ip);
+
+            // RabbitMQ publisher kullanarak verileri gönder
+            var channel = _connection.CreateModel();
+            channel.QueueDeclare(queue: "IPLocationQueue", durable: false, exclusive: false, autoDelete: false, arguments: null);
+            var message = $"IP: {ip}, Location: {location}";
+            var body = System.Text.Encoding.UTF8.GetBytes(message);
+            channel.BasicPublish(exchange: "", routingKey: "IPLocationQueue", basicProperties: null, body: body);
 
             return Ok(new UserLocation { IP = ip, Location = location });
         }
