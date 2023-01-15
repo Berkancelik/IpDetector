@@ -29,12 +29,15 @@ namespace IpDetectorProjectTest
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddSingleton<ConnectionFactory>(sp =>
+            services.AddTransient<IConnection>(f =>
             {
-                var factory = new ConnectionFactory();
-                factory.Uri = new Uri("amqps://xmjlrqlu:ta1aoEvcFb_LelYjKxQgEln-aADN41lN@moose.rmq.cloudamqp.com/xmjlrqlu");
-                return factory;
-            }); 
+                var factory = new ConnectionFactory()
+                {
+                    Uri = new Uri("amqps://xmjlrqlu:ta1aoEvcFb_LelYjKxQgEln-aADN41lN@moose.rmq.cloudamqp.com/xmjlrqlu")
+                };
+                return factory.CreateConnection();
+            });
+
             services.AddControllers();
             services.AddSwaggerGen(c =>
             {
